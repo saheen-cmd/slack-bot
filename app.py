@@ -62,6 +62,11 @@ def handle_message_events(body, say, logger):
 
         ai_response = response.text.strip()
 
+        say(ai_response)
+        print(f"📩 Received message: {user_question}")
+        print(f"🤖 Gemini reply: {ai_response}")
+
+
     except Exception as e:
         logger.error(f"Error handling message: {e}")
         say("An error occurred while processing your request.")
