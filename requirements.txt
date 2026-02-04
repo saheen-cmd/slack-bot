@@ -1,6 +1,5 @@
 slack_bolt
 slack_sdk
-openai
 python-dotenv
 requests
 google-genai

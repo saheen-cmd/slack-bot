@@ -16,9 +16,9 @@ COMPANY_NAME = os.getenv("COMPANY_NAME", "MyCompany")
 
 app = App(token=SLACK_BOT_TOKEN, signing_secret=SLACK_SIGNING_SECRET)
 
-genai.configure(api_key=GOOGLE_API_KEY) 
+client = genai.Client(api_key=GOOGLE_API_KEY) 
 
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = client.GenerativeModel(model_name="gemini-1.5-flash")
 
 def fetch_doc_text():
     """Fetch Google Doc content as plain text"""
@@ -63,5 +63,6 @@ def handle_message_events(body, say, logger):
         say("An error occurred while processing your request.")
 
 if __name__ == "__main__":
+    print("✅ Slack bot is starting up...")
     handler = SocketModeHandler(app, SLACK_APP_TOKEN)
     handler.start()
