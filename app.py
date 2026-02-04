@@ -18,6 +18,10 @@ app = App(token=SLACK_BOT_TOKEN, signing_secret=SLACK_SIGNING_SECRET)
 
 client = genai.Client(api_key=GOOGLE_API_KEY)
 
+print("✅ Slack bot starting with Socket Mode") 
+print(f"✅ Using SLACK_APP_TOKEN: {os.getenv('SLACK_APP_TOKEN')[:10]}...") # show first 10 chars 
+print(f"✅ Using model: models/gemini-2.5-flash")
+
 def fetch_doc_text():
     """Fetch Google Doc content as plain text"""
     try:
