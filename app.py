@@ -16,7 +16,9 @@ COMPANY_NAME = os.getenv("COMPANY_NAME", "MyCompany")
 
 app = App(token=SLACK_BOT_TOKEN, signing_secret=SLACK_SIGNING_SECRET)
 
-genai.configure(api_key=GOOGLE_API_KEY) model = genai.GenerativeModel("gemini-1.5-flash")
+genai.configure(api_key=GOOGLE_API_KEY) 
+
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 def fetch_doc_text():
     """Fetch Google Doc content as plain text"""
