@@ -2,7 +2,7 @@ import os
 import requests
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-import google.genai as genai
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
