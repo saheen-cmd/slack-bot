@@ -56,7 +56,7 @@ def handle_message_events(body, say, logger):
             contents=prompt 
         ) 
 
-         ai_response = response.text.strip()
+        ai_response = response.text.strip()
 
     except Exception as e:
         logger.error(f"Error handling message: {e}")
