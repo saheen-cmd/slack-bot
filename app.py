@@ -17,7 +17,6 @@ COMPANY_NAME = os.getenv("COMPANY_NAME", "MyCompany")
 app = App(token=SLACK_BOT_TOKEN, signing_secret=SLACK_SIGNING_SECRET)
 
 client = genai.Client(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel(model_name="gemini-1.5-flash", client=client)
 
 def fetch_doc_text():
     """Fetch Google Doc content as plain text"""
@@ -52,10 +51,12 @@ def handle_message_events(body, say, logger):
             f"If the question cannot be answered from the document, reply exactly with: Please contact HR"
         )
 
-        response = model.generate_content(prompt) 
-        ai_response = response.text.strip()
+        response = client.models.generate_content(
+            model="gemini-1.5-flash", 
+            contents=prompt 
+        ) 
 
-        say(ai_response)
+         ai_response = response.text.strip()
 
     except Exception as e:
         logger.error(f"Error handling message: {e}")
