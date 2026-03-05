@@ -100,16 +100,17 @@ def call_gemini_with_retry(prompt, retries=3, delay=2):
 
 # --- Shortening helper (preserve bullet/numbered lists up to 7 items) ---
 
-def shorten_response(text, max_lines=7, max_words=200):
-    """Trim response to a maximum number of bullet/numbered lines and words"""
-    # Split by line breaks first (preserves bullet/numbered formatting)
+def shorten_response(text, max_lines=10, max_words=150):
+    """Trim response without cutting mid-sentence"""
     parts = text.splitlines()
     shortened = "\n".join(parts[:max_lines]).strip()
 
-    # Word limit
     words = shortened.split()
     if len(words) > max_words:
-        shortened = " ".join(words[:max_words]) + "..."
+        truncated = " ".join(words[:max_words])
+        if "." in truncated:
+            truncated = truncated.rsplit(".", 1)[0] + "."
+        shortened = truncated
     return shortened
 
 # --- Slack event handler ---
@@ -147,6 +148,21 @@ def handle_message_events(body, say, logger):
             say(f"Hi {slack_name}, how can I help you today?")
             return
 
+        policy_keywords = ["policy", "values", "culture", "mission"]
+
+        lokal_values_text = (
+            "At Lokal, we act like owners who take initiative beyond job descriptions, "
+            "get things done despite obstacles, and maintain a growth mindset focused on learning. "
+            "We're outcome-driven with bias for action, believing speed matters in building products for billion Indians. "
+            "Decision-making involves open debate followed by full commitment and we operate on context rather than control—"
+            "managers share the \"why\" while you own execution. "
+            "We aim to be an all-star team that thinks big and takes calculated risks: to achieve ambitious goals."
+        )
+
+        if any(word in user_question.lower() for word in policy_keywords):
+            say(lokal_values_text)
+            return
+
         # ✅ Fetch doc content with fallback
         doc_text = fetch_doc_text()
         if not doc_text:
@@ -165,7 +181,10 @@ def handle_message_events(body, say, logger):
             f"- If the policy explicitly says 'Please contact HR' or similar, reply exactly with that wording.\n"
             f"- If the policy has no answer at all for {employment_type} and no 'General' section, then generate a short, natural, slightly    funny answer (max 25 words) "
             f"that politely says the info isn't in the policy and suggests asking about company policies.\n"
-            f"- Always reply concisely (max 7 bullet/numbered lines, under 200 words)."
+            f"- Keep the response consolidated and to the point — no long explanations or full paragraphs.\n"
+            f"- Use short bullet points (2-3 words per point where possible) or a single concise sentence.\n"
+            f"- Never cut off mid-sentence. Always complete the full answer.\n"
+            f"- Maximum 10 bullet points or 150 words. If answer is short, keep it short.\n"
         )
 
         # ✅ Call Gemini with retry wrapper
