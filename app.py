@@ -176,15 +176,13 @@ def handle_message_events(body, say, logger):
         # ✅ Build prompt for Gemini (with concise rule + history + new fallback)
         prompt = (
             f"You are an assistant for {COMPANY_NAME}. "
-            f"Here is the policy document:\n\n{doc_text}\n\n"
+    	    f"Here is the policy document:\n\n{doc_text}\n\n"
             f"Conversation history (last 5 messages):\n{history_text}\n\n"
             f"User ({slack_name}, {employment_type}) just asked: {user_question}\n\n"
             f"Rules:\n"
-            f"- If the policy has an answer for {employment_type}, use that.\n"
-	    f"- If not, use 'General'.\n"
+            f"- If the policy explicitly mentions employment types (FTE, Contract, Intern), then only give the answer that matches the user's employment type ({employment_type}).\n"
+            f"- If the policy does not mention any employment type at all for the question, then provide the full consolidated answer from the document.\n"
             f"- If the policy explicitly says 'Please contact HR' or similar, reply exactly with that wording.\n"
-            f"- If the policy has no answer at all for {employment_type} and no 'General' section, then generate a short, natural, slightly    funny answer (max 25 words) "
-            f"that politely says the info isn't in the policy and suggests asking about company policies.\n"
             f"- Keep the response consolidated and to the point — no long explanations or full paragraphs.\n"
             f"- Use short bullet points (2-3 words per point where possible) or a single concise sentence.\n"
             f"- Never cut off mid-sentence. Always complete the full answer.\n"
