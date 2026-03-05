@@ -68,9 +68,13 @@ def lookup_employment_type(slack_id, retries=3, delay=2):
             headers = values[0]
             rows = values[1:]
 
+            print(f"DEBUG: Sheet headers = {headers}")
+
             for row in rows:
                 row_dict = dict(zip(headers, row))
+                print(f"DEBUG: Checking row SlackID={row_dict.get('SlackID')} against {slack_id}")
                 if row_dict.get("SlackID") == slack_id:
+                    print(f"DEBUG: Match found for {slack_id}, EmploymentType={row_dict.get('EmploymentType')}")
                     return row_dict.get("EmploymentType", "General")
             print("SlackID not found in sheet.")
             return "General"
@@ -148,7 +152,7 @@ def handle_message_events(body, say, logger):
             say(f"Hi {slack_name}, how can I help you today?")
             return
 
-        policy_keywords = ["policy", "values", "culture", "mission"]
+        policy_keywords = ["values", "culture", "mission"]
 
         lokal_values_text = (
             "At Lokal, we act like owners who take initiative beyond job descriptions, "
