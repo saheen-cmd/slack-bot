@@ -141,6 +141,7 @@ def handle_message_events(body, say, logger):
 
         # ✅ Lookup employment type with fallback
         employment_type = lookup_employment_type(user_id) or "General"
+        print(f"DEBUG - SlackID: {user_id}, EmploymentType: {employment_type}")
 
         # ✅ Handle greetings directly
         greetings = ["hi", "hello", "hey"]
