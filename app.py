@@ -183,8 +183,8 @@ def handle_message_events(body, say, logger):
             f"- If the policy explicitly mentions employment types (FTE, Contract, Intern), then only give the answer that matches the user's employment type ({employment_type}).\n"
             f"- If the policy does not mention any employment type at all for the question, then provide the full consolidated answer from the document.\n"
             f"- If the policy explicitly says 'Please contact HR' or similar, reply exactly with that wording.\n"
-            f"- Keep the response consolidated and to the point — no long explanations or full paragraphs.\n"
-            f"- Use short bullet points (2-3 words per point where possible) or a single concise sentence.\n"
+            f"- Keep the response consolidated if word count of answer in policy is above 150 words— no long explanations or full paragraphs if wordcount in policy is above 150 words.\n"
+            f"- Use short bullet points (2-3 words per point where possible) or concise sentences. Mostly prefer concise sentences.\n"
             f"- Never cut off mid-sentence. Always complete the full answer.\n"
             f"- Maximum 10 bullet points or 150 words. If answer is short, keep it short.\n"
         )
