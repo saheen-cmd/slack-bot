@@ -58,7 +58,7 @@ def lookup_employment_type(slack_id, retries=3, delay=2):
         try:
             result = service.spreadsheets().values().get(
                 spreadsheetId=SHEET_ID,
-                range="Master Data!A:F"
+                range="Master Data"
             ).execute()
             values = result.get("values", [])
             if not values:
