@@ -143,6 +143,9 @@ def handle_message_events(body, say, logger):
             logger.error(f"Error fetching Slack user info: {e}")
             slack_name = "User"
 
+        employment_type = lookup_employment_type(user_id) or "General"
+        logger.info(f"DEBUG: For SlackID={user_id}, resolved employment type={employment_type}")
+
         # ✅ Lookup employment type with fallback
         employment_type = lookup_employment_type(user_id) or "General"
 
