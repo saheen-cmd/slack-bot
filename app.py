@@ -58,7 +58,7 @@ def lookup_employment_type(slack_id, retries=3, delay=2):
         try:
             result = service.spreadsheets().values().get(
                 spreadsheetId=SHEET_ID,
-                range="Slack ID!A:B"
+                range="Master Data"
             ).execute()
             values = result.get("values", [])
             if not values:
@@ -178,10 +178,12 @@ def handle_message_events(body, say, logger):
             f"You are an assistant for {COMPANY_NAME}. "
     	    f"Here is the policy document:\n\n{doc_text}\n\n"
             f"Conversation history (last 5 messages):\n{history_text}\n\n"
-            f"User ({slack_name}, {employment_type}) just asked: {user_question}\n\n"
+            f"User ({slack_name}, employment type: {employment_type}) just asked: {user_question}\n\n"
             f"Rules:\n"
-            f"- If the policy explicitly mentions employment types (FTE, Contract, Intern), then only give the answer that matches the user's employment type ({employment_type}).\n"
-            f"- If the policy does not mention any employment type at all for the question, then provide the full consolidated answer from the document.\n"
+            f"- The user's employment type is '{employment_type}'.\n"
+            f"- In the policy, find the section that starts with exactly '{employment_type}:' and return ONLY that answer.\n"
+            f"- Completely ignore sections labeled FTE:, Contract:, or Intern: that do not match '{employment_type}'.\n"
+            f"- If no section for '{employment_type}' exists, use the General section.\n"
             f"- If the policy explicitly says 'Please contact HR' or similar, reply exactly with that wording.\n"
             f"- Keep the response consolidated if word count of answer in policy is above 150 words— no long explanations or full paragraphs if wordcount in policy is above 150 words.\n"
             f"- If the policy has no answer at all for {employment_type}, then generate a short, natural, slightly funny answer (max 25 words) "
