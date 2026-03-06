@@ -58,7 +58,7 @@ def lookup_employment_type(slack_id, retries=3, delay=2):
         try:
             result = service.spreadsheets().values().get(
                 spreadsheetId=SHEET_ID,
-                range="Master Data"
+                range="Master Data!A:F"
             ).execute()
             values = result.get("values", [])
             if not values:
@@ -130,8 +130,6 @@ def handle_message_events(body, say, logger):
         user_id = event.get("user")
         if not user_id:
             return  # Ignore system/bot messages
-
-        app.client.chat_typing(channel=event["channel"])
 
         # ✅ Update user history
         user_histories[user_id].append(user_question)
