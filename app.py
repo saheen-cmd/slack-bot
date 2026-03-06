@@ -58,7 +58,7 @@ def lookup_employment_type(slack_id, retries=3, delay=2):
         try:
             result = service.spreadsheets().values().get(
                 spreadsheetId=SHEET_ID,
-                range="Master Data!A:F"
+                range="Slack ID!A:B"
             ).execute()
             values = result.get("values", [])
             if not values:
@@ -142,9 +142,6 @@ def handle_message_events(body, say, logger):
         except Exception as e:
             logger.error(f"Error fetching Slack user info: {e}")
             slack_name = "User"
-
-        employment_type = lookup_employment_type(user_id) or "General"
-        logger.info(f"DEBUG: For SlackID={user_id}, resolved employment type={employment_type}")
 
         # ✅ Lookup employment type with fallback
         employment_type = lookup_employment_type(user_id) or "General"
