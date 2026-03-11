@@ -152,9 +152,9 @@ def handle_message_events(body, say, logger):
             say(f"Hi {slack_name}, how can I help you today?")
             return
 
-        policy_keywords = ["values", "culture", "mission"]
+        policy_keywords = ["culture", "mission"]
 
-        lokal_values_text = (
+        lokal_culture_text = (
             "At Lokal, we act like owners who take initiative beyond job descriptions, "
             "get things done despite obstacles, and maintain a growth mindset focused on learning. "
             "We're outcome-driven with bias for action, believing speed matters in building products for billion Indians. "
