@@ -184,12 +184,13 @@ def handle_message_events(body, say, logger):
             f"- In the policy, find the section that starts with exactly '{employment_type}:' and return ONLY that answer if its available. Else give the same answer.\n"
             f"- If the policy explicitly says 'Please contact HR' or similar, reply exactly with that wording.\n"
             f"- Keep the response consolidated if word count of answer in policy is above 150 words— no long explanations or full paragraphs if wordcount in policy is above 150 words.\n"
-            f"- If the policy has no answer at all for {employment_type}, then generate a short, natural, slightly funny answer (max 25 words) "
-            f"that politely says the info isn’t in the policy and suggests asking about company policies.\n"
-
+            f"- If the policy has no answer at all for {employment_type}, then say in a human way: "
+            f"'I have limited knowledge on this, please contact HR for clarification.'\n"
             f"- Use short bullet points (2-3 words per point where possible) or concise sentences. Mostly prefer concise sentences.\n"
             f"- Never cut off mid-sentence. Always complete the full answer.\n"
             f"- Maximum 10 bullet points or 150 words. If answer is short, keep it short.\n"
+            f"- Always phrase answers in a natural, human‑like way. Do not copy text verbatim from the policy; instead, paraphrase clearly and conversationally.\n"
+
         )
 
         # ✅ Call Gemini with retry wrapper
