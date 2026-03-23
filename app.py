@@ -51,16 +51,15 @@ HR_CONTACTS = {
 }
 
 HR_KEYWORDS = {
-    "admin": "admin",
-    "onboarding": "onboarding",
-    "employee engagement": "employee_engagement",
-    "leave": "leave_exit_fnf",
-    "fnf": "leave_exit_fnf",
-    "exit": "leave_exit_fnf",
-    "performance": "performance",
-    "probation": "probation",
-    "insurance": "insurance",
-    "payroll": "payroll",
+    HR_KEYWORDS = {
+    "admin": ["admin"],
+    "onboarding": ["onboarding"],
+    "employee_engagement": ["employee engagement"],
+    "leave_exit_fnf": ["leave", "fnf", "exit"],
+    "performance": ["performance"],
+    "probation": ["probation"],
+    "insurance": ["insurance"],
+    "payroll": ["payroll", "payment", "salary"],
 }
 
 
