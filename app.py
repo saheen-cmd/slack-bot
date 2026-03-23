@@ -38,7 +38,7 @@ service = build("sheets", "v4", credentials=creds)
 user_histories = defaultdict(lambda: deque(maxlen=5))
 
 HR_CONTACTS = {
-    "admin":       ["<@U079CLY03T9>"],
+    "admin":       ["U079CLY03T9"],
     "onboarding":  ["U12345ONBOARD"],
     "insurance":   ["U12345INSURE"],
     "payroll":     ["U12345PAYROLL"],
