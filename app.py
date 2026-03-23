@@ -37,6 +37,63 @@ service = build("sheets", "v4", credentials=creds)
 # --- History buffer (per user, last 5 messages) ---
 user_histories = defaultdict(lambda: deque(maxlen=5))
 
+# --- HR Contacts ---
+
+HR_CONTACTS = {
+    "admin": ["U079CLY03T9"],  # Arjun
+    "onboarding": ["U09HZE7BBL5", "U0A5TTHLBLG", "U093LAH6BGB", "U04KZK0SF2T", "U07TECNM2HE"],
+    "employee_engagement": ["U09HZE7BBL5", "U0A5TTHLBLG"],
+    "leave_exit_fnf": ["U04KZK0SF2T"],
+    "performance": ["U0A7LTEKHB3", "U09RQQS0AP5", "U07TECNM2HE"],
+    "probation": ["U0A7LTEKHB3", "U09RQQS0AP5", "U07TECNM2HE"],
+    "insurance": ["U09HZE7BBL5", "U079CLY03T9", "U04KZK0SF2T"],
+    "payroll": ["U09GTSUR48N"],
+}
+
+HR_KEYWORDS = {
+    "admin": "admin",
+    "onboarding": "onboarding",
+    "employee engagement": "employee_engagement",
+    "leave": "leave_exit_fnf",
+    "fnf": "leave_exit_fnf",
+    "exit": "leave_exit_fnf",
+    "performance": "performance",
+    "probation": "probation",
+    "insurance": "insurance",
+    "payroll": "payroll",
+}
+
+
+def get_hr_contact_sentence(category):
+    """Returns a sentence with Slack user mentions for the given HR category."""
+    ids = HR_CONTACTS.get(category, [])
+    if not ids:
+        return ""
+    mentions = " or ".join(f"<@{uid}>" for uid in ids)
+    label = category.capitalize()
+    return f"For {label} related queries, please reach out to {mentions}."
+
+
+def get_hr_contacts_from_question(user_question):
+    """
+    Detects HR-related keywords in the user's question and returns
+    tagged HR contact sentences. Returns an empty string if no match found.
+    """
+    question_lower = user_question.lower()
+    matched_categories = []
+
+    for category, keywords in HR_KEYWORDS.items():
+        if any(kw in question_lower for kw in keywords):
+            if category not in matched_categories:
+                matched_categories.append(category)
+
+    if not matched_categories:
+        return ""
+
+    sentences = [get_hr_contact_sentence(cat) for cat in matched_categories]
+    return "\n".join(s for s in sentences if s)
+
+
 # --- Retry wrappers ---
 
 def fetch_doc_text(retries=3, delay=2):
@@ -102,6 +159,7 @@ def call_gemini_with_retry(prompt, retries=3, delay=2):
             time.sleep(delay)
     return None  # fallback if all retries fail
 
+
 # --- Shortening helper (preserve bullet/numbered lists up to 7 items) ---
 
 def shorten_response(text, max_lines=10, max_words=150):
@@ -117,6 +175,7 @@ def shorten_response(text, max_lines=10, max_words=150):
         shortened = truncated
     return shortened
 
+
 # --- Slack event handler ---
 
 @app.event("message")
@@ -131,11 +190,11 @@ def handle_message_events(body, say, logger):
         if not user_id:
             return  # Ignore system/bot messages
 
-        # ✅ Update user history
+        # Update user history
         user_histories[user_id].append(user_question)
         history_text = "\n".join(user_histories[user_id])
 
-        # ✅ Get Slack user info safely
+        # Get Slack user info safely
         try:
             user_info = app.client.users_info(user=user_id)
             slack_name = user_info.get("user", {}).get("real_name", "User")
@@ -143,10 +202,10 @@ def handle_message_events(body, say, logger):
             logger.error(f"Error fetching Slack user info: {e}")
             slack_name = "User"
 
-        # ✅ Lookup employment type with fallback
+        # Lookup employment type with fallback
         employment_type = lookup_employment_type(user_id) or "General"
 
-        # ✅ Handle greetings directly
+        # Handle greetings directly
         greetings = ["hi", "hello", "hey"]
         if user_question.lower().strip() in greetings:
             say(f"Hi {slack_name}, how can I help you today?")
@@ -164,19 +223,29 @@ def handle_message_events(body, say, logger):
         )
 
         if any(word in user_question.lower() for word in policy_keywords):
-            say(lokal_values_text)
+            say(lokal_culture_text)
             return
 
-        # ✅ Fetch doc content with fallback
+        # HR keyword routing — before hitting Gemini
+        hr_response = get_hr_contacts_from_question(user_question)
+        if hr_response:
+            say(hr_response)
+            return
+
+        # Fetch doc content with fallback
         doc_text = fetch_doc_text()
         if not doc_text:
-            say("FAQ document unavailable right now. Please contact HR.")
+            hr_response = get_hr_contacts_from_question(user_question)
+            if hr_response:
+                say(hr_response)
+            else:
+                say("FAQ document unavailable right now. Please contact HR.")
             return
 
-        # ✅ Build prompt for Gemini (with concise rule + history + new fallback)
+        # Build prompt for Gemini (with concise rule + history + new fallback)
         prompt = (
             f"You are an assistant for {COMPANY_NAME}. "
-    	    f"Here is the policy document:\n\n{doc_text}\n\n"
+            f"Here is the policy document:\n\n{doc_text}\n\n"
             f"Conversation history (last 5 messages):\n{history_text}\n\n"
             f"User ({slack_name}, employment type: {employment_type}) just asked: {user_question}\n\n"
             f"Rules:\n"
@@ -190,22 +259,31 @@ def handle_message_events(body, say, logger):
             f"- Never cut off mid-sentence. Always complete the full answer.\n"
             f"- Maximum 10 bullet points or 150 words. If answer is short, keep it short.\n"
             f"- Always phrase answers in a natural, human‑like way. Do not copy text verbatim from the policy; instead, paraphrase clearly and conversationally.\n"
-
         )
 
-        # ✅ Call Gemini with retry wrapper
+        # Call Gemini with retry, then apply HR tagging on failure or "contact HR" replies
         ai_response = call_gemini_with_retry(prompt)
         if not ai_response:
-            say("Gemini could not generate a response after multiple attempts. Please try again later.")
+            hr_response = get_hr_contacts_from_question(user_question)
+            if hr_response:
+                say(hr_response)
+            else:
+                say("Gemini could not generate a response. Please contact HR.")
             return
 
-        # ✅ Shorten response before sending
+        if "contact hr" in ai_response.lower():
+            hr_response = get_hr_contacts_from_question(user_question)
+            if hr_response:
+                say(hr_response)
+                return
+
         short_response = shorten_response(ai_response, max_lines=7, max_words=200)
         say(short_response)
 
     except Exception as e:
         logger.error(f"Error handling message: {e}")
         say("An unexpected error occurred while processing your request.")
+
 
 # --- Run the bot ---
 if __name__ == "__main__":
