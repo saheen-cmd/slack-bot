@@ -37,6 +37,45 @@ service = build("sheets", "v4", credentials=creds)
 # --- History buffer (per user, last 5 messages) ---
 user_histories = defaultdict(lambda: deque(maxlen=5))
 
+HR_CONTACTS = {
+    "admin":       ["U12345ADMIN"],
+    "onboarding":  ["U12345ONBOARD"],
+    "insurance":   ["U12345INSURE"],
+    "payroll":     ["U12345PAYROLL"],
+    "performance": ["U12345PERFORM"],
+    "probation":   ["U12345PROBATION"],
+}
+
+HR_KEYWORDS = {
+    "admin":       ["access card", "laptop", "equipment", "seating", "facility", "office supplies"],
+    "onboarding":  ["joining formalities", "induction", "new hire", "orientation"],
+    "insurance":   ["mediclaim", "health cover", "gmc", "gpa", "insurance claim"],
+    "payroll":     ["payslip", "salary credit", "reimbursement", "pf", "epf", "tds", "ctc", "increment", "payment"],
+    "performance": ["performance review", "appraisal", "pip", "performance improvement"],
+    "probation":   ["probation confirmation", "probation extension"],
+}
+
+def get_hr_contacts_from_question(user_question):
+    question_lower = user_question.lower()
+    matched_categories = []
+
+    for category, keywords in HR_KEYWORDS.items():
+        for kw in keywords:
+            if kw in question_lower:
+                matched_categories.append(category)
+                break  # stop after first keyword match for this category
+
+    if not matched_categories:
+        return ""
+
+    sentences = []
+    for category in matched_categories:
+        ids = HR_CONTACTS.get(category, [])
+        if ids:
+            mentions = " or ".join(f"<@{uid}>" for uid in ids)
+            sentences.append(f"For {category.replace('_',' ').title()} related queries, please reach out to {mentions}.")
+    return "\n".join(sentences)
+
 # --- Retry wrappers ---
 
 def fetch_doc_text(retries=3, delay=2):
@@ -164,7 +203,7 @@ def handle_message_events(body, say, logger):
         )
 
         if any(word in user_question.lower() for word in policy_keywords):
-            say(lokal_values_text)
+            say(lokal_culture_text)
             return
 
         # ✅ Fetch doc content with fallback
@@ -198,10 +237,21 @@ def handle_message_events(body, say, logger):
         if not ai_response:
             say("Gemini could not generate a response after multiple attempts. Please try again later.")
             return
+        
+        # ✅ Only override if Gemini says "Please contact HR for clarification."
+        if "please contact hr for clarification" in ai_response.lower():
+            hr_response = get_hr_contacts_from_question(user_question)
+            if hr_response:
+                say(hr_response)
+            else:
+                # Default HR contact if no keyword matched
+                say("Please contact <@U06BW50M7NF> for further assistance.")
+            return
 
-        # ✅ Shorten response before sending
+        # Otherwise, just shorten and send Gemini’s answer
         short_response = shorten_response(ai_response, max_lines=7, max_words=200)
         say(short_response)
+
 
     except Exception as e:
         logger.error(f"Error handling message: {e}")
