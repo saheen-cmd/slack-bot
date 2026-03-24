@@ -39,16 +39,16 @@ user_histories = defaultdict(lambda: deque(maxlen=5))
 
 HR_CONTACTS = {
     "admin":       ["U079CLY03T9"],
-    "onboarding":  ["U12345ONBOARD"],
-    "insurance":   ["U12345INSURE"],
-    "payroll":     ["U12345PAYROLL"],
-    "performance": ["U12345PERFORM"],
-    "probation":   ["U12345PROBATION"],
+    "onboarding":  ["U09HZE7BBL5"],
+    "insurance":   ["U04KZK0SF2T", "U09HZE7BBL5"],
+    "payroll":     ["U09GTSUR48N"],
+    "performance": ["U09RQQS0AP5", "U0A7LTEKHB3"],
+    "probation":   ["U09RQQS0AP5", "U0A7LTEKHB3"],
 }
 
 HR_KEYWORDS = {
-    "admin":       ["access card", "laptop", "equipment", "seating", "facility", "office supplies"],
-    "onboarding":  ["joining formalities", "induction", "new hire", "orientation"],
+    "admin":       ["access card", "laptop", "equipment", "seating", "facility", "office supplies", "food", "snack"],
+    "onboarding":  ["joining formalities", "induction", "new hire", "orientation", "GreytHR"],
     "insurance":   ["mediclaim", "health cover", "gmc", "gpa", "insurance claim"],
     "payroll":     ["payslip", "salary credit", "reimbursement", "pf", "epf", "tds", "ctc", "increment", "payment"],
     "performance": ["performance review", "appraisal", "pip", "performance improvement"],
