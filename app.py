@@ -239,17 +239,17 @@ def handle_message_events(body, say, logger):
         # ✅ Call Gemini with retry wrapper
         ai_response = call_gemini_with_retry(prompt)
         if not ai_response:
-            say("Gemini could not generate a response after multiple attempts. Please try again later.")
+            say(append_feedback_line("Gemini could not generate a response after multiple attempts. Please try again later."))
             return
         
         # ✅ Only override if Gemini says "Please contact HR for clarification."
         if "please contact hr for clarification" in ai_response.lower():
             hr_response = get_hr_contacts_from_question(user_question)
             if hr_response:
-                say(hr_response)
+                say(append_feedback_line(hr_response))
             else:
                 # Default HR contact if no keyword matched
-                say("Please contact <@U06BW50M7NF> for further assistance.")
+                say(append_feedback_line("Please contact <@U06BW50M7NF> for further assistance."))
             return
 
         # Otherwise, just shorten and send Gemini’s answer
