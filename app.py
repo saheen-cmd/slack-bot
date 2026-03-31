@@ -157,7 +157,7 @@ def shorten_response(text, max_lines=10, max_words=150):
     return shortened
 
 def append_feedback_line(message: str) -> str:
-    feedback = "Please fill the form for any suggestion or issue faced in response: https://forms.gle/gjcFHFs1ubsaqeSv5"
+    feedback = "_Please fill the form for any suggestion or issue faced in response: https://forms.gle/gjcFHFs1ubsaqeSv5_"
     return f"{message}\n\n{feedback}"
 
 # --- Slack event handler ---
