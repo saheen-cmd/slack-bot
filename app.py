@@ -189,7 +189,7 @@ def handle_message_events(body, say, logger):
         # ✅ Lookup employment type with fallback
         employment_type = lookup_employment_type(user_id) or "General"
 
-        # ✅ Handle greetings directly (no feedback line here)
+        # ✅ Handle greetings directly
         greetings = ["hi", "hello", "hey"]
         if user_question.lower().strip() in greetings:
             say(f"Hi {slack_name}, how can I help you today?")
@@ -207,32 +207,33 @@ def handle_message_events(body, say, logger):
         )
 
         if any(word in user_question.lower() for word in policy_keywords):
-            say(append_feedback_line(lokal_culture_text))
+            say(lokal_culture_text)
             return
 
         # ✅ Fetch doc content with fallback
         doc_text = fetch_doc_text()
         if not doc_text:
-            say(append_feedback_line("FAQ document unavailable right now. Please contact HR."))
+            say("FAQ document unavailable right now. Please contact HR.")
             return
 
-        # ✅ Build prompt for Gemini
+        # ✅ Build prompt for Gemini (with concise rule + history + new fallback)
         prompt = (
             f"You are an assistant for {COMPANY_NAME}. "
-            f"Here is the policy document:\n\n{doc_text}\n\n"
+    	    f"Here is the policy document:\n\n{doc_text}\n\n"
             f"Conversation history (last 5 messages):\n{history_text}\n\n"
             f"User ({slack_name}, employment type: {employment_type}) just asked: {user_question}\n\n"
             f"Rules:\n"
             f"- The user's employment type is '{employment_type}'.\n"
             f"- In the policy, find the section that starts with exactly '{employment_type}:' and return ONLY that answer if its available. Else give the same answer.\n"
             f"- If the policy explicitly says 'Please contact HR' or similar, reply exactly with that wording.\n"
-            f"- Keep the response consolidated if word count of answer in policy is above 150 words.\n"
+            f"- Keep the response consolidated if word count of answer in policy is above 150 words— no long explanations or full paragraphs if wordcount in policy is above 150 words.\n"
             f"- If the policy has no answer at all for {employment_type}, then say in a human way: "
             f"'I have limited knowledge on this, please contact HR for clarification.'\n"
-            f"- Use short bullet points or concise sentences.\n"
-            f"- Never cut off mid-sentence.\n"
-            f"- Maximum 10 bullet points or 150 words.\n"
-            f"- Always phrase answers in a natural, human‑like way.\n"
+            f"- Use short bullet points (2-3 words per point where possible) or concise sentences. Mostly prefer concise sentences.\n"
+            f"- Never cut off mid-sentence. Always complete the full answer.\n"
+            f"- Maximum 10 bullet points or 150 words. If answer is short, keep it short.\n"
+            f"- Always phrase answers in a natural, human‑like way. Do not copy text verbatim from the policy; instead, paraphrase clearly and conversationally.\n"
+
         )
 
         # ✅ Call Gemini with retry wrapper
@@ -247,16 +248,18 @@ def handle_message_events(body, say, logger):
             if hr_response:
                 say(append_feedback_line(hr_response))
             else:
+                # Default HR contact if no keyword matched
                 say(append_feedback_line("Please contact <@U06BW50M7NF> for further assistance."))
             return
 
-        # ✅ Otherwise, shorten and send Gemini’s answer
+        # Otherwise, just shorten and send Gemini’s answer
         short_response = shorten_response(ai_response, max_lines=7, max_words=200)
         say(append_feedback_line(short_response))
 
+
     except Exception as e:
         logger.error(f"Error handling message: {e}")
-        say(append_feedback_line("An unexpected error occurred while processing your request."))
+        say("An unexpected error occurred while processing your request.")
 
 # --- Run the bot ---
 if __name__ == "__main__":
