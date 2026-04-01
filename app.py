@@ -162,9 +162,17 @@ def handle_message_events(body, say, logger):
 
     except Exception as e:
         logger.error(f"Error handling message: {e}")
-        say("An unexpected error occurred while processing your request.")
-        if "event" in body and "channel" in body["event"]:
-            schedule_feedback(body["event"].get("user"), body["event"].get("channel"))
+        # Only send error message if we still have context
+        if "event" in body:
+            channel_id = body["event"].get("channel")
+            if channel_id:
+                app.client.chat_postMessage(
+                    channel=channel_id,
+                    text="An unexpected error occurred while processing your request."
+                )
+                user_id = body["event"].get("user")
+                if user_id:
+                    schedule_feedback(user_id, channel_id)
 
 # --- Run the bot ---
 if __name__ == "__main__":
