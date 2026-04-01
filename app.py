@@ -2,7 +2,7 @@ import os
 import json
 import time
 import requests
-import threading
+import threading   # NEW
 from collections import defaultdict, deque
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
@@ -55,7 +55,7 @@ def schedule_feedback(user_id, channel_id):
             )
         except Exception as e:
             print(f"Error sending feedback message: {e}")
-        user_timers.pop(user_id, None)  # remove after firing
+        user_timers.pop(user_id, None)
 
     timer = threading.Timer(180, send_feedback)  # 180 seconds = 3 minutes
     user_timers[user_id] = timer
@@ -233,7 +233,4 @@ def handle_message_events(body, say, logger):
                     schedule_feedback(user_id, channel_id)
 
 # --- Run the bot ---
-if __name__ == "__main__":
-    handler = SocketModeHandler(app, SLACK_APP_TOKEN)
-    handler.start()
-``
+if __name
