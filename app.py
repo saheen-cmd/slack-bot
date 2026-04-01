@@ -92,6 +92,7 @@ def schedule_feedback(user_id, channel_id):
             app.client.chat_postMessage(
                 channel=channel_id,
                 text="*Please fill the form for any suggestion or issue faced in response: https://forms.gle/gjcFHFs1ubsaqeSv5*",
+                as_user=True
             )
         except Exception as e:
             print(f"Error sending feedback message: {e}")
