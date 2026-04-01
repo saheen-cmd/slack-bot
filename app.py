@@ -93,13 +93,13 @@ def schedule_feedback(user_id, channel_id):
                 channel=channel_id,
                 text="*Please fill the form for any suggestion or issue faced in response: https://forms.gle/gjcFHFs1ubsaqeSv5*",
                 thread_ts=None,
-                reply_broadcast=False
+                reply_broadcast=True
             )
         except Exception as e:
             print(f"Error sending feedback message: {e}")
         user_timers.pop(user_id, None)
 
-    timer = threading.Timer(180, send_feedback)  # 180 seconds = 3 minutes
+    timer = threading.Timer(60, send_feedback)  # 180 seconds = 3 minutes
     user_timers[user_id] = timer
     timer.start()
 
