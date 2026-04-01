@@ -2,7 +2,7 @@ import os
 import json
 import time
 import requests
-import threading   # NEW
+import threading
 from collections import defaultdict, deque
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
@@ -30,7 +30,6 @@ client = genai.Client(api_key=GOOGLE_API_KEY)
 
 # Google Sheets API setup
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-
 creds_info = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON"))
 creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
 service = build("sheets", "v4", credentials=creds)
@@ -42,11 +41,9 @@ user_histories = defaultdict(lambda: deque(maxlen=5))
 user_timers = {}
 
 def schedule_feedback(user_id, channel_id):
-    # Cancel any existing timer for this user
     if user_id in user_timers:
         user_timers[user_id].cancel()
 
-    # Start a new 3-minute timer
     def send_feedback():
         try:
             app.client.chat_postMessage(
@@ -86,7 +83,6 @@ def lookup_employment_type(slack_id, retries=3, delay=2):
 
             headers = values[0]
             rows = values[1:]
-
             for row in rows:
                 row_dict = dict(zip(headers, row))
                 if row_dict.get("SlackID") == slack_id:
@@ -233,4 +229,6 @@ def handle_message_events(body, say, logger):
                     schedule_feedback(user_id, channel_id)
 
 # --- Run the bot ---
-if __name
+if __name__ == "__main__":
+    handler = SocketModeHandler(app, SLACK_APP_TOKEN)
+    handler.start()
