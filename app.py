@@ -193,6 +193,7 @@ def handle_message_events(body, say, logger):
             return  # Ignore non-text events
 
         user_id = event.get("user")
+        channel_id = event.get("channel")
         if not user_id:
             return  # Ignore system/bot messages
 
@@ -289,7 +290,7 @@ def handle_message_events(body, say, logger):
         say("An unexpected error occurred while processing your request.")
         if "event" in body:
             user_id = body["event"].get("user")
-            channel_id = body["event].get("channel")
+            channel_id = body["event"].get("channel")
             if user_id and channel_id:
                 schedule_feedback(user_id, channel_id)
 
