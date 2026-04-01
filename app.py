@@ -76,6 +76,31 @@ def get_hr_contacts_from_question(user_question):
             sentences.append(f"For {category.replace('_',' ').title()} related queries, please reach out to {mentions}.")
     return "\n".join(sentences)
 
+import threading
+
+# Track inactivity timers per user
+user_timers = {}
+
+def schedule_feedback(user_id, channel_id):
+    # Cancel any existing timer for this user
+    if user_id in user_timers:
+        user_timers[user_id].cancel()
+
+    # Start a new 3-minute timer
+    def send_feedback():
+        try:
+            app.client.chat_postMessage(
+                channel=channel_id,
+                text="*Please fill the form for any suggestion or issue faced in response: https://forms.gle/gjcFHFs1ubsaqeSv5*"
+            )
+        except Exception as e:
+            print(f"Error sending feedback message: {e}")
+        user_timers.pop(user_id, None)
+
+    timer = threading.Timer(180, send_feedback)  # 180 seconds = 3 minutes
+    user_timers[user_id] = timer
+    timer.start()
+
 # --- Retry wrappers ---
 
 def fetch_doc_text(retries=3, delay=2):
@@ -205,12 +230,14 @@ def handle_message_events(body, say, logger):
 
         if any(word in user_question.lower() for word in policy_keywords):
             say(lokal_culture_text)
+            schedule_feedback(user_id, channel_id)
             return
 
         # ✅ Fetch doc content with fallback
         doc_text = fetch_doc_text()
         if not doc_text:
             say("FAQ document unavailable right now. Please contact HR.")
+            schedule_feedback(user_id, channel_id)
             return
 
         # ✅ Build prompt for Gemini (with concise rule + history + new fallback)
@@ -237,6 +264,7 @@ def handle_message_events(body, say, logger):
         ai_response = call_gemini_with_retry(prompt)
         if not ai_response:
             say("Gemini could not generate a response after multiple attempts. Please try again later.")
+            schedule_feedback(user_id, channel_id)
             return
         
         # ✅ Only override if Gemini says "Please contact HR for clarification."
@@ -247,16 +275,23 @@ def handle_message_events(body, say, logger):
             else:
                 # Default HR contact if no keyword matched
                 say("Please contact <@U06BW50M7NF> for further assistance.")
+            schedule_feedback(user_id, channel_id)
             return
 
         # Otherwise, just shorten and send Gemini’s answer
         short_response = shorten_response(ai_response, max_lines=7, max_words=200)
         say(short_response)
+        schedule_feedback(user_id, channel_id)
 
 
     except Exception as e:
         logger.error(f"Error handling message: {e}")
         say("An unexpected error occurred while processing your request.")
+        if "event" in body:
+            user_id = body["event"].get("user")
+            channel_id = body["event].get("channel")
+            if user_id and channel_id:
+                schedule_feedback(user_id, channel_id)
 
 # --- Run the bot ---
 if __name__ == "__main__":
