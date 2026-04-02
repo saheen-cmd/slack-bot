@@ -156,28 +156,6 @@ def shorten_response(text, max_lines=10, max_words=150):
         shortened = truncated
     return shortened
 
-import threading
-
-user_timers = {}
-
-def schedule_feedback(user_id, channel_id, last_message_ts):
-    if user_id in user_timers:
-        user_timers[user_id].cancel()
-
-    def send_feedback():
-        try:
-            app.client.chat_postMessage(
-                channel=channel_id,
-                text="Please share feedback here:",
-                thread_ts=last_message_ts   # ensures it appears below the bot’s last reply
-            )
-        except Exception as e:
-            print(f"Error sending feedback message: {e}")
-        user_timers.pop(user_id, None)
-
-    timer = threading.Timer(60, send_feedback)  # 60 seconds = 1 minute
-    user_timers[user_id] = timer
-    timer.start()
 
 # --- Slack event handler ---
 
@@ -212,8 +190,6 @@ def handle_message_events(body, say, logger):
         greetings = ["hi", "hello", "hey"]
         if user_question.lower().strip() in greetings:
             say(f"Hi {slack_name}, how can I help you today?")
-            last_message_ts = response["ts"]
-            schedule_feedback(user_id, channel_id, last_message_ts)
             return
 
         policy_keywords = ["culture", "mission"]
@@ -229,16 +205,12 @@ def handle_message_events(body, say, logger):
 
         if any(word in user_question.lower() for word in policy_keywords):
             say(lokal_culture_text)
-            last_message_ts = response["ts"]
-            schedule_feedback(user_id, channel_id, last_message_ts)
             return
 
         # ✅ Fetch doc content with fallback
         doc_text = fetch_doc_text()
         if not doc_text:
             say("FAQ document unavailable right now. Please contact HR.")
-            last_message_ts = response["ts"]
-            schedule_feedback(user_id, channel_id, last_message_ts)
             return
 
         # ✅ Build prompt for Gemini (with concise rule + history + new fallback)
@@ -265,8 +237,6 @@ def handle_message_events(body, say, logger):
         ai_response = call_gemini_with_retry(prompt)
         if not ai_response:
             say("Gemini could not generate a response after multiple attempts. Please try again later.")
-            last_message_ts = response["ts"]
-            schedule_feedback(user_id, channel_id, last_message_ts)
             return
         
         # ✅ Only override if Gemini says "Please contact HR for clarification."
@@ -277,15 +247,11 @@ def handle_message_events(body, say, logger):
             else:
                 # Default HR contact if no keyword matched
                 say("Please contact <@U06BW50M7NF> for further assistance.")
-            last_message_ts = response["ts"]
-            schedule_feedback(user_id, channel_id, last_message_ts)
             return
 
         # Otherwise, just shorten and send Gemini’s answer
         short_response = shorten_response(ai_response, max_lines=7, max_words=200)
         say(short_response)
-        last_message_ts = response["ts"]
-        schedule_feedback(user_id, channel_id, last_message_ts)
 
 
     except Exception as e:
