@@ -44,9 +44,18 @@ def get_all_users():
 
 def get_dm_channel(user_id):
     try:
+        time.sleep(2)
         response = client.conversations_open(users=user_id)
         return response['channel']['id']
     except Exception as e:
+        if 'ratelimited' in str(e):
+            print(f"  Rate limited, waiting 30 seconds...")
+            time.sleep(30)
+            try:
+                response = client.conversations_open(users=user_id)
+                return response['channel']['id']
+            except:
+                return None
         print(f"Could not open DM with {user_id}: {e}")
         return None
 
@@ -114,7 +123,7 @@ def fetch_all_history():
             total += len(rows)
             print(f"  {len(rows)} messages from {user['name']}")
 
-        time.sleep(1)
+        time.sleep(3)
 
     print(f"\nDone! {total} total messages written to Google Sheet.")
 
