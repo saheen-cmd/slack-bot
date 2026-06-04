@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-client = WebClient(token=os.getenv("SLACK_BOT_TOKEN"))
+client = WebClient(token=os.getenv("SLACK_USER_TOKEN"))
 LOG_SHEET_ID = os.getenv("LOG_SHEET_ID")
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
