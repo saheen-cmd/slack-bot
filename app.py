@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import json
 import time
 import random
@@ -26,6 +27,21 @@ SHEET_ID = os.getenv("SHEET_ID")
 # --- Settings ---
 DM_ONLY = True          # True = bot answers only in DMs. Set False if you also want it to answer in channels.
 CACHE_SECONDS = 300     # Re-download the policy doc / employee sheet every 5 minutes (not on every message)
+
+# Gemini models, tried in order. If the first one fails, the bot tries the next one.
+GEMINI_MODELS = ["models/gemini-2.5-flash", "models/gemini-2.5-flash-lite"]
+
+
+def log(message):
+    """Print and flush right away, so the message always shows up in Render logs."""
+    try:
+        print(message, flush=True)
+    except Exception:
+        try:
+            sys.stderr.write(str(message) + "\n")
+            sys.stderr.flush()
+        except Exception:
+            pass
 
 # Slack app
 app = App(token=SLACK_BOT_TOKEN, signing_secret=SLACK_SIGNING_SECRET)
@@ -205,7 +221,7 @@ def fetch_doc_text(retries=3, delay=2):
             resp.raise_for_status()
             return resp.text
         except Exception as e:
-            print(f"Doc fetch attempt {attempt + 1} failed: {e}")
+            log(f"Doc fetch attempt {attempt + 1} failed: {e}")
             time.sleep(delay)
     return ""  # fallback if all retries fail
 
@@ -232,7 +248,7 @@ def load_employment_map(retries=3, delay=2):
             ).execute()
             values = result.get("values", [])
             if not values:
-                print("Sheet empty or invalid range.")
+                log("Sheet empty or invalid range.")
                 return {}
 
             headers = values[0]
@@ -244,7 +260,7 @@ def load_employment_map(retries=3, delay=2):
                     mapping[slack_id] = row_dict.get("EmploymentType") or "General"
             return mapping
         except Exception as e:
-            print(f"Sheet lookup attempt {attempt + 1} failed: {e}")
+            log(f"Sheet lookup attempt {attempt + 1} failed: {e}")
             time.sleep(delay)
     return None
 
@@ -260,23 +276,34 @@ def lookup_employment_type(slack_id):
     return mapping.get(slack_id, "General")
 
 
-def call_gemini_with_retry(prompt, retries=3, delay=2):
-    """Call Gemini API with retry logic"""
-    for attempt in range(retries):
-        try:
-            response = client.models.generate_content(
-                model="models/gemini-2.5-flash",
-                contents=prompt
-            )
-            ai_response = (getattr(response, "text", "") or "").strip()
-            if ai_response:
-                return ai_response
-            else:
-                print("Gemini returned empty response.")
-        except Exception as e:
-            print(f"Gemini API attempt {attempt + 1} failed: {e}")
+def call_gemini_with_retry(prompt, retries=2, delay=3):
+    """Try each Gemini model in GEMINI_MODELS, with retries, and log exactly why a call failed."""
+    log(f"GEMINI: sending prompt of {len(prompt)} characters")
+    for model in GEMINI_MODELS:
+        for attempt in range(retries):
+            try:
+                response = client.models.generate_content(model=model, contents=prompt)
+                ai_response = (getattr(response, "text", "") or "").strip()
+                if ai_response:
+                    return ai_response
+                # Empty answer: log why (blocked, safety, etc.)
+                reason = "unknown"
+                try:
+                    cand = response.candidates[0] if response.candidates else None
+                    reason = f"finish_reason={getattr(cand, 'finish_reason', None)}, " \
+                             f"prompt_feedback={getattr(response, 'prompt_feedback', None)}"
+                except Exception:
+                    pass
+                log(f"GEMINI ERROR [{model}] attempt {attempt + 1}: empty response ({reason})")
+            except Exception as e:
+                log(f"GEMINI ERROR [{model}] attempt {attempt + 1}: {type(e).__name__}: {e}")
+                # Rate limit: wait longer before trying again
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    time.sleep(delay * (attempt + 2))
+                    continue
             time.sleep(delay)
-    return None  # fallback if all retries fail
+        log(f"GEMINI: giving up on {model}, trying next model (if any)")
+    return None  # all models failed
 
 
 # --- Shortening helper ---
@@ -322,7 +349,7 @@ def deliver(say, thinking, text):
             app.client.chat_update(channel=thinking["channel"], ts=thinking["ts"], text=text)
             return
         except Exception as e:
-            print(f"Could not update message, sending a new one: {e}")
+            log(f"Could not update message, sending a new one: {e}")
     say(text)
 
 
