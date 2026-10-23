@@ -10,7 +10,7 @@ from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-import google.genai as genai
+import anthropic
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,7 +19,7 @@ load_dotenv()
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET")
 SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 DOC_URL = os.getenv("DOC_URL")
 COMPANY_NAME = os.getenv("COMPANY_NAME", "Lokal")
 SHEET_ID = os.getenv("SHEET_ID")
@@ -28,8 +28,9 @@ SHEET_ID = os.getenv("SHEET_ID")
 DM_ONLY = True          # True = bot answers only in DMs. Set False if you also want it to answer in channels.
 CACHE_SECONDS = 300     # Re-download the policy doc / employee sheet every 5 minutes (not on every message)
 
-# Gemini models, tried in order. If the first one fails, the bot tries the next one.
-GEMINI_MODELS = ["models/gemini-2.5-flash", "models/gemini-2.5-flash-lite"]
+# Claude models, tried in order. Haiku is fast and cheap. If it fails, the bot tries the next one.
+CLAUDE_MODELS = ["claude-haiku-5-5", "claude-sonnet-5-5"]
+MAX_ANSWER_TOKENS = 700
 
 
 def log(message):
@@ -46,8 +47,8 @@ def log(message):
 # Slack app
 app = App(token=SLACK_BOT_TOKEN, signing_secret=SLACK_SIGNING_SECRET)
 
-# Gemini client
-client = genai.Client(api_key=GOOGLE_API_KEY)
+# Claude client
+client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, max_retries=1, timeout=60)
 
 # Google Sheets API setup
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
@@ -276,33 +277,33 @@ def lookup_employment_type(slack_id):
     return mapping.get(slack_id, "General")
 
 
-def call_gemini_with_retry(prompt, retries=2, delay=3):
-    """Try each Gemini model in GEMINI_MODELS, with retries, and log exactly why a call failed."""
-    log(f"GEMINI: sending prompt of {len(prompt)} characters")
-    for model in GEMINI_MODELS:
+def call_claude_with_retry(prompt, retries=2, delay=3):
+    """Try each Claude model in CLAUDE_MODELS, with retries, and log exactly why a call failed."""
+    log(f"CLAUDE: sending prompt of {len(prompt)} characters")
+    for model in CLAUDE_MODELS:
         for attempt in range(retries):
             try:
-                response = client.models.generate_content(model=model, contents=prompt)
-                ai_response = (getattr(response, "text", "") or "").strip()
+                response = client.messages.create(
+                    model=model,
+                    max_tokens=MAX_ANSWER_TOKENS,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                ai_response = "".join(
+                    block.text for block in response.content if getattr(block, "type", "") == "text"
+                ).strip()
                 if ai_response:
                     return ai_response
-                # Empty answer: log why (blocked, safety, etc.)
-                reason = "unknown"
-                try:
-                    cand = response.candidates[0] if response.candidates else None
-                    reason = f"finish_reason={getattr(cand, 'finish_reason', None)}, " \
-                             f"prompt_feedback={getattr(response, 'prompt_feedback', None)}"
-                except Exception:
-                    pass
-                log(f"GEMINI ERROR [{model}] attempt {attempt + 1}: empty response ({reason})")
+                log(f"CLAUDE ERROR [{model}] attempt {attempt + 1}: empty response "
+                    f"(stop_reason={getattr(response, 'stop_reason', None)})")
             except Exception as e:
-                log(f"GEMINI ERROR [{model}] attempt {attempt + 1}: {type(e).__name__}: {e}")
-                # Rate limit: wait longer before trying again
-                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                log(f"CLAUDE ERROR [{model}] attempt {attempt + 1}: {type(e).__name__}: {e}")
+                # Rate limit or overloaded: wait longer before trying again
+                status = getattr(e, "status_code", None)
+                if status in (429, 529):
                     time.sleep(delay * (attempt + 2))
                     continue
             time.sleep(delay)
-        log(f"GEMINI: giving up on {model}, trying next model (if any)")
+        log(f"CLAUDE: giving up on {model}, trying next model (if any)")
     return None  # all models failed
 
 
@@ -428,13 +429,13 @@ def handle_message_events(body, say, logger):
             f"- Never cut off mid-sentence. Always complete the full answer.\n"
         )
 
-        ai_response = call_gemini_with_retry(prompt)
+        ai_response = call_claude_with_retry(prompt)
         if not ai_response:
             deliver(say, thinking,
                     "Sorry, I couldn't come up with an answer just now. Please try again in a bit 🙏")
             return
 
-        # If Gemini says it doesn't know, point the user to the right HR person
+        # If Claude says it doesn't know, point the user to the right HR person
         if "please contact hr for clarification" in ai_response.lower():
             hr_response = get_hr_contacts_from_question(user_question)
             if hr_response:
